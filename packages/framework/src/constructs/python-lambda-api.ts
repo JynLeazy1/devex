@@ -14,7 +14,7 @@ import { Construct } from 'constructs'
 
 import { GoldenPathTagsAspect } from './golden-path-tags-aspect'
 import type { PythonLambdaApiProps } from './props'
-import { PythonLambdaRoute } from './python-lambda-route'
+import { PythonLambdaRoute, grantTableAccess } from './python-lambda-route'
 
 const PYTHON_RUNTIME_MAP: Record<'3.11' | '3.12', lambda.Runtime> = {
   '3.11': lambda.Runtime.PYTHON_3_11,
@@ -26,11 +26,22 @@ const DEFAULT_PARTITION_KEY = 'PK'
 const DEFAULT_SORT_KEY = 'SK'
 const DEFAULT_TTL_ATTRIBUTE = 'ttl'
 
+/** Defaults for `extraGrants` Lambdas — mirror PythonLambdaRoute defaults. */
+const EXTRA_GRANT_DEFAULT_MEMORY_MB = 256
+const EXTRA_GRANT_DEFAULT_TIMEOUT_SECONDS = 10
+
 export class PythonLambdaApi extends Construct {
   public readonly httpApi: apigwv2.HttpApi
   public readonly table: dynamodb.Table
   public readonly authorizer: apigwv2_authorizers.HttpLambdaAuthorizer | null
   public readonly routes: readonly PythonLambdaRoute[]
+
+  /**
+   * Lambdas created via `props.extraGrants`, keyed by `grant.id`. Use to
+   * attach event sources, IAM grants beyond table access, or to reference
+   * the function in CfnOutputs.
+   */
+  public readonly extraGrantLambdas: ReadonlyMap<string, lambda.Function>
 
   constructor(scope: Construct, id: string, props: PythonLambdaApiProps) {
     super(scope, id)
@@ -79,7 +90,34 @@ export class PythonLambdaApi extends Construct {
       })
     })
 
-    // 7. CloudFormation outputs — mirrors transactionify's behavior.
+    // 7. Extra grants — non-route Lambdas that share the table. The L3 owns
+    //    their creation + table grant; consumers attach event sources (e.g.,
+    //    EventBridge, SQS) after construction via the `extraGrantLambdas` map.
+    const extraGrantLambdas = new Map<string, lambda.Function>()
+    for (const grant of props.extraGrants ?? []) {
+      if (extraGrantLambdas.has(grant.id)) {
+        throw new Error(
+          `PythonLambdaApi: duplicate extraGrant id '${grant.id}'. ` +
+            'Each extraGrant.id must be unique within the Construct.',
+        )
+      }
+      const fn = new lambda.Function(this, grant.id, {
+        runtime: PYTHON_RUNTIME_MAP[props.runtime],
+        handler: grant.handler,
+        code: lambda.Code.fromAsset(props.sourcePath),
+        memorySize: grant.memorySize ?? EXTRA_GRANT_DEFAULT_MEMORY_MB,
+        timeout: cdk.Duration.seconds(
+          grant.timeoutSeconds ?? EXTRA_GRANT_DEFAULT_TIMEOUT_SECONDS,
+        ),
+        ...(grant.description !== undefined ? { description: grant.description } : {}),
+        environment: { TABLE_NAME: this.table.tableName },
+      })
+      grantTableAccess(this.table, fn, grant.permission)
+      extraGrantLambdas.set(grant.id, fn)
+    }
+    this.extraGrantLambdas = extraGrantLambdas
+
+    // 8. CloudFormation outputs — mirrors transactionify's behavior.
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: this.httpApi.apiEndpoint,
       description: 'HTTP API Gateway endpoint URL',

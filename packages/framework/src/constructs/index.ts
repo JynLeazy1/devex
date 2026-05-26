@@ -26,6 +26,8 @@ export type {
   RoutePermission,
 } from './route-definition'
 
+export type { ExtraGrant } from './extra-grant'
+
 export type {
   PythonLambdaApiProps,
   PythonLambdaRouteProps,

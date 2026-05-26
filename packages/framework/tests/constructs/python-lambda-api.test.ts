@@ -172,6 +172,123 @@ describe('PythonLambdaApi — Lambdas', () => {
   })
 })
 
+describe('PythonLambdaApi — extraGrants (non-route Lambdas)', () => {
+  it('creates no extra Lambdas when extraGrants is omitted', () => {
+    const tpl = synthTemplate()
+    // 2 route Lambdas + 1 authorizer (default fixture); no extras.
+    tpl.resourceCountIs('AWS::Lambda::Function', 3)
+  })
+
+  it('creates one Lambda per extraGrant entry, in addition to routes/authorizer', () => {
+    const tpl = synthTemplate(
+      buildProps({
+        extraGrants: [
+          {
+            id: 'Provisioning',
+            handler: 'svc.provisioning.main.handler',
+            permission: 'write',
+            description: 'Registers a new tenant.',
+          },
+          {
+            id: 'Cleanup',
+            handler: 'svc.cleanup.main.handler',
+            permission: 'readwrite',
+          },
+        ],
+      }),
+    )
+    // 2 routes + 1 authorizer + 2 extraGrants = 5
+    tpl.resourceCountIs('AWS::Lambda::Function', 5)
+  })
+
+  it('grants the declared DynamoDB permission to the extraGrant Lambda', () => {
+    const tpl = synthTemplate(
+      buildProps({
+        extraGrants: [
+          {
+            id: 'WriteOnly',
+            handler: 'svc.x.handler',
+            permission: 'write',
+          },
+        ],
+      }),
+    )
+    // A WriteOnly grant should produce an IAM policy with PutItem-shaped
+    // actions but NOT GetItem / Query / Scan.
+    const policies = tpl.findResources('AWS::IAM::Policy')
+    const writePolicy = Object.values(policies).find((p) => {
+      const statements = (p.Properties?.PolicyDocument?.Statement ?? []) as Array<{
+        Action: string | string[]
+      }>
+      return statements.some((s) => {
+        const actions = Array.isArray(s.Action) ? s.Action : [s.Action]
+        return actions.some((a) => a.includes('PutItem'))
+      })
+    })
+    expect(writePolicy).toBeDefined()
+  })
+
+  it('exposes extraGrant Lambdas via api.extraGrantLambdas keyed by id', () => {
+    const app = new App()
+    const stack = new Stack(app, 'TestStack', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    })
+    const api = new PythonLambdaApi(
+      stack,
+      'Api',
+      buildProps({
+        extraGrants: [
+          { id: 'A', handler: 'svc.a.handler', permission: 'read' },
+          { id: 'B', handler: 'svc.b.handler', permission: 'write' },
+        ],
+      }),
+    )
+    expect(api.extraGrantLambdas.size).toBe(2)
+    expect(api.extraGrantLambdas.get('A')).toBeDefined()
+    expect(api.extraGrantLambdas.get('B')).toBeDefined()
+    expect(api.extraGrantLambdas.get('C')).toBeUndefined()
+  })
+
+  it('rejects duplicate extraGrant ids', () => {
+    const app = new App()
+    const stack = new Stack(app, 'TestStack', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    })
+    expect(() =>
+      new PythonLambdaApi(
+        stack,
+        'Api',
+        buildProps({
+          extraGrants: [
+            { id: 'Dup', handler: 'svc.a.handler', permission: 'read' },
+            { id: 'Dup', handler: 'svc.b.handler', permission: 'write' },
+          ],
+        }),
+      ),
+    ).toThrow(/duplicate extraGrant id/)
+  })
+
+  it('honors extraGrant memorySize and timeoutSeconds overrides', () => {
+    const tpl = synthTemplate(
+      buildProps({
+        extraGrants: [
+          {
+            id: 'Heavy',
+            handler: 'svc.heavy.handler',
+            permission: 'read',
+            memorySize: 1024,
+            timeoutSeconds: 60,
+          },
+        ],
+      }),
+    )
+    tpl.hasResourceProperties('AWS::Lambda::Function', {
+      MemorySize: 1024,
+      Timeout: 60,
+    })
+  })
+})
+
 describe('PythonLambdaApi — Authorizer wiring', () => {
   it('creates the authorizer Lambda when authorizerHandler is non-null', () => {
     const tpl = synthTemplate()

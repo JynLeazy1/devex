@@ -49,8 +49,10 @@ const HTTP_METHOD_MAP: Record<HttpMethod, apigwv2.HttpMethod> = {
  * Applies the route's declared DynamoDB permission to a Lambda. Permission
  * declarations in `RouteDefinition` are kept narrow (`read`/`write`/`readwrite`)
  * so handlers cannot accidentally get broader access than they declared.
+ *
+ * Exported so `PythonLambdaApi` can reuse it for `extraGrants` Lambdas.
  */
-function grantTableAccess(
+export function grantTableAccess(
   table: { grantReadData: (fn: lambda.IFunction) => unknown
            grantWriteData: (fn: lambda.IFunction) => unknown
            grantReadWriteData: (fn: lambda.IFunction) => unknown },

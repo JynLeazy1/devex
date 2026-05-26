@@ -2,6 +2,7 @@ import type * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import type * as apigwv2_authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import type { EnvironmentConfig } from './environment-config';
+import type { ExtraGrant } from './extra-grant';
 import type { GoldenPathTagsSeverity } from './golden-path-tags-aspect';
 import type { GoldenPathTags } from './golden-path-tags';
 import type { RouteDefinition } from './route-definition';
@@ -73,6 +74,18 @@ export interface PythonLambdaApiProps {
      * `profile.tagSeverity` through from their `devex.profile.ts`.
      */
     readonly tagSeverity?: GoldenPathTagsSeverity;
+    /**
+     * Additional Lambda functions that need access to the DynamoDB table but
+     * are NOT exposed as HTTP API routes. Use cases: provisioning workers
+     * invoked via SDK, scheduled jobs triggered by EventBridge, internal
+     * callers reached via Lambda invoke.
+     *
+     * Each entry creates a Lambda and grants the requested permission on the
+     * shared table — same single-table pattern as routes. The Lambdas are
+     * exposed via `api.extraGrantLambdas` (keyed by `grant.id`) so consumers
+     * can attach event sources after construction.
+     */
+    readonly extraGrants?: readonly ExtraGrant[];
 }
 /**
  * Props for the per-route sub-Construct. Consumers don't normally instantiate

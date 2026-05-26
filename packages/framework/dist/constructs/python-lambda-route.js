@@ -29,7 +29,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PythonLambdaRoute = void 0;
+exports.PythonLambdaRoute = exports.grantTableAccess = void 0;
 const cdk = __importStar(require("aws-cdk-lib"));
 const apigwv2 = __importStar(require("aws-cdk-lib/aws-apigatewayv2"));
 const apigwv2_integrations = __importStar(require("aws-cdk-lib/aws-apigatewayv2-integrations"));
@@ -65,6 +65,8 @@ const HTTP_METHOD_MAP = {
  * Applies the route's declared DynamoDB permission to a Lambda. Permission
  * declarations in `RouteDefinition` are kept narrow (`read`/`write`/`readwrite`)
  * so handlers cannot accidentally get broader access than they declared.
+ *
+ * Exported so `PythonLambdaApi` can reuse it for `extraGrants` Lambdas.
  */
 function grantTableAccess(table, fn, permission) {
     switch (permission) {
@@ -81,6 +83,7 @@ function grantTableAccess(table, fn, permission) {
             (0, profiles_1.assertNever)(permission);
     }
 }
+exports.grantTableAccess = grantTableAccess;
 class PythonLambdaRoute extends constructs_1.Construct {
     /**
      * The Lambda function backing this route. Exposed so consumers can grant
