@@ -15,7 +15,7 @@
 
 The reference project [`transactionify`](https://github.com/rrgarciach/transactionify) is a real Python Lambda + API Gateway + DynamoDB service. Its `lib/transactionify-stack.ts` is **187 lines** of repeated CDK boilerplate: 5 Lambdas × (function + grant + integration + route) plus tags hardcoded inline.
 
-After adopting `@devex/framework`, the same Stack drops to **73 lines** — a **60% reduction** — and gains:
+A consumer fork demonstrating the refactor lives at [`JynLeazy1/transactionify`](https://github.com/JynLeazy1/transactionify). After adopting `@devex/framework`, the same Stack drops to **73 lines** — a **60% reduction** — and gains:
 
 - **Multi-environment support** (sandbox / staging / prod, each a separate Stack)
 - **FinOps tag enforcement** via CDK Aspect (missing tag → `cdk synth` warning or error)
@@ -34,7 +34,7 @@ No DORA emission           →    Cross-language DoraEvent at every stage
 No multi-env support       →    3 stacks (sandbox/staging/prod) from one file
 ```
 
-> A refactored consumer (`transactionify-fork`) implementing this end-to-end exists in the development repo and can be shared separately on request.
+> See [`JynLeazy1/transactionify`](https://github.com/JynLeazy1/transactionify) for the full refactored consumer (multi-env stack, `.wac.ts` workflows, generated YAML).
 
 ---
 
@@ -43,7 +43,7 @@ No multi-env support       →    3 stacks (sandbox/staging/prod) from one file
 ### Install the CLI
 
 ```bash
-uv tool install "git+https://github.com/<user>/devex#subdirectory=packages/cli"
+uv tool install "git+https://github.com/JynLeazy1/devex#subdirectory=packages/cli"
 devex --version
 ```
 
@@ -74,12 +74,12 @@ You now have:
 ### Install the framework in your service
 
 ```bash
-pnpm add "github:<user>/devex#path:/packages/framework"
+pnpm add "github:JynLeazy1/devex#path:/packages/framework"
 ```
 
 Pin to a release:
 ```bash
-pnpm add "github:<user>/devex#v0.1.0&path:/packages/framework"
+pnpm add "github:JynLeazy1/devex#v0.1.0&path:/packages/framework"
 ```
 
 ### Generate the pipeline YAML
@@ -168,6 +168,7 @@ import {
   contractValidationJob,
   cdkSynthJob,
   doraSummaryJob,
+  integrationPromoteJob,  // skeleton — designed, deferred to post-PoC
 } from '@devex/framework'
 
 // Polyglot StackProfile (discriminated union — python today, go/ts/clojure scaffolded)
@@ -186,6 +187,8 @@ devex validate                  Validates Work IDs in branch / commits / PR titl
 devex init [--team X]           Scaffolds devex.profile.ts + workflows/pr.wac.ts
                                 Auto-detects --repo-url from `git remote` and
                                 --service-name from the working directory.
+                  [--strict-tags]     Write `tagSeverity: 'error'` so missing FinOps
+                                      tags fail `cdk synth` (vs warn).
 devex check                     Runs the lint + test commands declared in
                                 devex.profile.ts (or via --lint / --test flags).
                                 Fail-fast on first lint failure.
@@ -194,6 +197,7 @@ devex hooks install             Installs pre-push hook calling devex validate
                   [--with-checks]     + pre-push also runs `devex check`
 devex hooks uninstall           Removes devex-managed hooks (preserves custom)
 devex dora emit                 Emits a structured DoraEvent (Pydantic-validated)
+devex audit emit                Emits a structured AuditEvent (SOC 2: who/what/when/why)
 ```
 
 Run `devex --help` or `devex <command> --help` for details.
@@ -218,10 +222,11 @@ This is a **Proof of Concept**. Some pieces are deliberately deferred — see [A
 | `devex init` (scaffolding) | ✅ Real | Auto-detects service-name + repo URL from git |
 | `devex hooks install [--auto-inject\|--with-checks]` | ✅ Real | pre-push + prepare-commit-msg with absolute path |
 | `devex dora emit` (JSON or POST to collector) | ✅ Real | Pydantic validation, stdout or HTTP transport |
-| Reference consumer (multi-env stack) | ✅ Real | Refactored 187→73 lines · sandbox/staging/prod · lives in the dev repo, available on request |
+| `devex audit emit` (SOC 2 audit events) | ✅ Real | Same shape as `dora emit`; AuditAction enum (8 values) |
+| Reference consumer (multi-env stack) | ✅ Real | Refactored 187→73 lines · sandbox/staging/prod · lives at [JynLeazy1/transactionify](https://github.com/JynLeazy1/transactionify) |
 | **Plus** — Kiro steering files | ✅ Real | `.kiro/steering/*.md` for AI-assisted development |
 | **Plus** — Pre-Push Validation | ✅ Real | `devex check` integrated into pre-push (`--with-checks`) |
-| Integration Pipeline (sandbox → staging → prod) | ⏭️ Deferred | Designed in ADR, not implemented in PoC |
+| `integrationPromoteJob` (Sandbox → Staging → Prod) | 🟡 Skeleton | Typed factory exists for `integration.wac.ts`; body throws `out of PoC scope` |
 | Go / TypeScript / Clojure `smallTestsJob` branches | ⏭️ Deferred | StackProfile contract typed; inner-source contribution welcome |
 | Amazon Q Developer integration | ⏭️ Deferred | Two Plus criteria already shipped (above) |
 | DORA dashboard (storage + viz) | ⏭️ Out of scope | Framework defines the event schema; consumption is org-specific |
@@ -233,20 +238,20 @@ This is a **Proof of Concept**. Some pieces are deliberately deferred — see [A
 This monorepo is also a runnable demo. With `uv` and `pnpm` installed:
 
 ```bash
-git clone https://github.com/<user>/devex
+git clone https://github.com/JynLeazy1/devex
 cd devex
 
 # Install everything (workspace-linked)
 pnpm install
 
-# Run all framework tests (91 tests)
+# Run all framework tests (95 tests)
 cd packages/framework && pnpm test
 
-# Run all CLI tests (122 tests)
+# Run all CLI tests (131 tests)
 cd ../cli && uv pip install -e ".[dev]" && pytest
 ```
 
-**213 tests** across both packages pass on a clean clone (122 Python + 91 TypeScript).
+**226 tests** across both packages pass on a clean clone (131 Python + 95 TypeScript).
 
 ---
 

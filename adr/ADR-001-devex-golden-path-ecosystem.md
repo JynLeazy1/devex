@@ -50,6 +50,8 @@ Both products install from Git directly (`uv tool install` for the CLI, `pnpm ad
 
 Shared contracts (DORA event, Work ID regex, audit event) live in the monorepo as **mirror modules** — hand-written Zod (TS) and Pydantic (Python), kept in lockstep by contribution rules and a round-trip contract validation job in CI. No code generation: the cost (drift discipline) is lower than the cost of a generator dependency, a build step, and debugging generated code.
 
+`devex check` reads `testCommand`/`lintCommands` from `devex.profile.ts` via a small regex parser (with TS-comment stripping). This is intentionally pragmatic for the PoC — robust enough for the file `devex init` produces, but a hand-edited profile with template-string interpolation or imports for the field values falls back to a warning + explicit `--test`/`--lint` flags. Post-PoC alternatives: emit a sidecar `devex.profile.json`, run a `pnpm devex:checks` helper that evaluates the TS, or call the TypeScript Compiler API from Python via subprocess.
+
 ## 6. Plus criteria delivered
 
 Two of the optional challenge "Plus" criteria are shipped — **Kiro steering files** and **Pre-Push Validation** (`devex check`); details in the [README Implementation Status](../README.md#implementation-status).

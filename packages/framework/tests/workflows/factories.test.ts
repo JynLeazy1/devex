@@ -11,6 +11,7 @@ import {
   cdkSynthJob,
   contractValidationJob,
   doraSummaryJob,
+  integrationPromoteJob,
   smallTestsJob,
   workIdValidationJob,
 } from '../../src/workflows'
@@ -325,12 +326,31 @@ describe('smallTestsJob (implemented for python)', () => {
       expect(setupWith?.['enable-cache']).toBe(true)
     })
 
+    it('uv cache-dependency-glob covers uv.lock, pyproject.toml, requirements.txt', () => {
+      const setup = (job.job.steps ?? []).find((s) =>
+        s.uses?.startsWith('astral-sh/setup-uv'),
+      )
+      const setupWith = setup?.with as Record<string, unknown> | undefined
+      const glob = String(setupWith?.['cache-dependency-glob'] ?? '')
+      expect(glob).toContain('**/uv.lock')
+      expect(glob).toContain('**/pyproject.toml')
+      expect(glob).toContain('**/requirements.txt')
+    })
+
     it('installs deps via `uv sync` when packageManager is uv', () => {
       const install = (job.job.steps ?? []).find((s) =>
         s.name?.includes('Install'),
       )
       expect(install?.run).toContain('uv sync')
       expect(install?.['working-directory']).toBe(pythonProfile.sourcePath)
+    })
+
+    it('uv install falls back to `uv pip install -r requirements.txt` when uv.lock is absent', () => {
+      const install = (job.job.steps ?? []).find((s) =>
+        s.name?.includes('Install'),
+      )
+      expect(install?.run).toContain('[ -f uv.lock ]')
+      expect(install?.run).toContain('uv pip install -r requirements.txt')
     })
 
     it('uses `pip install -r requirements.txt` when packageManager is pip', () => {
@@ -370,6 +390,29 @@ describe('smallTestsJob (implemented for python)', () => {
       expect(tests?.run).toBe(pythonProfile.testCommand)
     })
 
+    it('runs profile.lintCommands before tests when non-empty', () => {
+      const multiLintJob = smallTestsJob({
+        ...pythonProfile,
+        lintCommands: ['ruff check src', 'ruff format --check src'],
+      })
+      const steps = multiLintJob.job.steps ?? []
+      const lintIdx = steps.findIndex((s) => s.name === 'Run lint')
+      const testIdx = steps.findIndex((s) => s.name === 'Run tests')
+      expect(lintIdx).toBeGreaterThanOrEqual(0)
+      expect(lintIdx).toBeLessThan(testIdx)
+      const lint = steps[lintIdx]
+      // All lintCommands present, joined with `&&` for fail-fast
+      expect(lint.run).toContain('ruff check src')
+      expect(lint.run).toContain('ruff format --check src')
+      expect(lint.run).toContain(' && ')
+    })
+
+    it('omits the lint step when profile.lintCommands is empty', () => {
+      const noLintJob = smallTestsJob({ ...pythonProfile, lintCommands: [] })
+      const lint = (noLintJob.job.steps ?? []).find((s) => s.name === 'Run lint')
+      expect(lint).toBeUndefined()
+    })
+
     it('uploads coverage when --cov is in the testCommand', () => {
       const covJob = smallTestsJob({
         ...pythonProfile,
@@ -407,5 +450,22 @@ describe('smallTestsJob (implemented for python)', () => {
       expect(() => smallTestsJob(tsProfile)).toThrow(/'typescript' branch/i)
       expect(() => smallTestsJob(clojureProfile)).toThrow(/'clojure' branch/i)
     })
+  })
+})
+
+describe('integrationPromoteJob (deferred skeleton)', () => {
+  it('throws "out of PoC scope" for every environment', () => {
+    for (const env of ['sandbox', 'staging', 'prod'] as const) {
+      expect(() => integrationPromoteJob(pythonProfile, env)).toThrow(
+        /out of the PoC scope/i,
+      )
+    }
+  })
+
+  it('mentions the specific environment in the error message', () => {
+    expect(() => integrationPromoteJob(pythonProfile, 'sandbox')).toThrow(
+      /'sandbox'/,
+    )
+    expect(() => integrationPromoteJob(pythonProfile, 'prod')).toThrow(/'prod'/)
   })
 })

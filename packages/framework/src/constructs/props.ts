@@ -9,6 +9,7 @@ import type * as apigwv2_authorizers from 'aws-cdk-lib/aws-apigatewayv2-authoriz
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 
 import type { EnvironmentConfig } from './environment-config'
+import type { GoldenPathTagsSeverity } from './golden-path-tags-aspect'
 import type { GoldenPathTags } from './golden-path-tags'
 import type { RouteDefinition } from './route-definition'
 
@@ -84,6 +85,13 @@ export interface PythonLambdaApiProps {
    * single-table pattern from transactionify.
    */
   readonly tableConfig?: TableConfig
+
+  /**
+   * Severity for the `GoldenPathTagsAspect`. When omitted, the Construct uses
+   * the Aspect's default (`'warning'`). Consumers typically thread
+   * `profile.tagSeverity` through from their `devex.profile.ts`.
+   */
+  readonly tagSeverity?: GoldenPathTagsSeverity
 }
 
 /**

@@ -58,4 +58,12 @@ export interface BaseProfile {
    * as the `AWS_REGION` env var.
    */
   readonly awsRegion: string
+
+  /**
+   * FinOps-tag enforcement severity, threaded into `GoldenPathTagsAspect`
+   * by the Construct. Optional — defaults to `'warning'` (graduated rollout).
+   * Teams ready for strict enforcement set `'error'` and `cdk synth` blocks
+   * on missing tags. Scaffolded by `devex init --strict-tags`.
+   */
+  readonly tagSeverity?: 'warning' | 'error'
 }

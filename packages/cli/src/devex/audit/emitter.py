@@ -1,8 +1,8 @@
-"""DORA event emission — pure functions (no I/O) plus thin transport layer.
+"""SOC 2 audit event emission — mirrors the shape of `devex.dora.emitter`.
 
-The pure side builds and validates a `DoraEvent` from primitive inputs. The
-transport side either serializes to JSON (stdout fallback) or POSTs to a
-collector endpoint.
+Same split as DORA: pure builder + thin transport layer. The schema is shared
+via `BaseEvent` so DORA and audit can land in the same event stream and be
+discriminated by consumers on `schema_version` and presence of `action`.
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 
-from devex.contracts import DoraEvent, Stage, Status
+from devex.contracts import AuditAction, AuditEvent
 
 
 class CollectorError(Exception):
-    """Raised when posting to the DORA collector endpoint fails."""
+    """Raised when posting to the audit collector endpoint fails."""
 
 
 def build_event(
@@ -24,38 +24,36 @@ def build_event(
     work_id: str,
     team: str,
     repo: str,
-    stage: Stage,
-    status: Status,
+    action: AuditAction,
+    target: str,
+    reason: str,
     actor: str,
     git_sha: str,
     framework_version: str,
-    duration_ms: int | None = None,
-    reason: str | None = None,
     timestamp: datetime | None = None,
-) -> DoraEvent:
-    """Construct a validated `DoraEvent`. Raises `ValidationError` on bad input."""
-    return DoraEvent(
+) -> AuditEvent:
+    """Construct a validated `AuditEvent`. Raises `ValidationError` on bad input."""
+    return AuditEvent(
         work_id=work_id,
         team=team,
         repo=repo,
-        stage=stage,
-        status=status,
+        action=action,
+        target=target,
+        reason=reason,
         actor=actor,
         timestamp=timestamp or datetime.now(UTC),
-        duration_ms=duration_ms,
         git_sha=git_sha,
         framework_version=framework_version,
-        reason=reason,
     )
 
 
-def emit_to_stdout(event: DoraEvent) -> str:
+def emit_to_stdout(event: AuditEvent) -> str:
     """Serialize to JSON and return the payload (caller prints it)."""
     return event.model_dump_json()
 
 
-def emit_to_collector(event: DoraEvent, url: str, timeout_seconds: float = 10.0) -> None:
-    """POST the event to a DORA collector endpoint.
+def emit_to_collector(event: AuditEvent, url: str, timeout_seconds: float = 10.0) -> None:
+    """POST the event to an audit collector endpoint.
 
     Raises:
         CollectorError: when the request fails (network, non-2xx response).

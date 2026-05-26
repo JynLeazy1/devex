@@ -16,12 +16,24 @@ from rich.console import Console
 from rich.markup import escape
 
 from devex import __version__
+from devex.audit import (
+    CollectorError as AuditCollectorError,
+)
+from devex.audit import (
+    build_event as build_audit_event,
+)
+from devex.audit import (
+    emit_to_collector as emit_audit_to_collector,
+)
+from devex.audit import (
+    emit_to_stdout as emit_audit_to_stdout,
+)
 from devex.check import (
     CheckLabel,
     resolve_check_commands,
     run_all,
 )
-from devex.contracts import Stage, Status
+from devex.contracts import AuditAction, Stage, Status
 from devex.dora import CollectorError, build_event, emit_to_collector, emit_to_stdout
 from devex.hooks import (
     HookResult,
@@ -274,6 +286,15 @@ def init(
         "--dry-run",
         help="Show what would be written without touching the filesystem.",
     ),
+    strict_tags: bool = typer.Option(
+        False,
+        "--strict-tags",
+        help=(
+            "Scaffold the profile with `tagSeverity: 'error'` so missing FinOps "
+            "tags fail `cdk synth` instead of merely warning. Use for production "
+            "stacks or teams ready for day-1 enforcement."
+        ),
+    ),
 ) -> None:
     """Scaffold the Golden Path in the current repository."""
     resolved_service_name = _resolve_service_name(service_name)
@@ -283,6 +304,7 @@ def init(
         team=team,
         repo_url=resolved_repo_url,
         work_id_pattern=work_id_pattern,
+        strict_tags=strict_tags,
     )
 
     try:
@@ -580,7 +602,7 @@ def dora_emit(
             framework_version=FRAMEWORK_VERSION,
         )
     except ValidationError as exc:
-        err_console.print(f"[red]error:[/red] invalid DORA event payload:")
+        err_console.print("[red]error:[/red] invalid DORA event payload:")
         err_console.print(escape(str(exc)))
         raise typer.Exit(code=1) from exc
 
@@ -596,6 +618,70 @@ def dora_emit(
     else:
         # Print JSON to stdout — pipe-friendly for log aggregators.
         typer.echo(emit_to_stdout(event))
+
+
+audit_app = typer.Typer(help="Emit SOC 2 audit events.")
+app.add_typer(audit_app, name="audit")
+
+
+@audit_app.command("emit")
+def audit_emit(
+    action: AuditAction = typer.Option(..., "--action", help="Audit action being recorded."),
+    target: str = typer.Option(
+        ..., "--target", help="What was acted upon (env name, resource, PR number)."
+    ),
+    reason: str = typer.Option(
+        ..., "--reason", help="Why the action happened (SOC 2 requires a justification)."
+    ),
+    work_id: str = typer.Option(
+        ..., "--work-id", envvar="DEVEX_WORK_ID", help="Work ID (e.g. FIN-123)."
+    ),
+    team: str = typer.Option(..., "--team", envvar="DEVEX_TEAM", help="Owning team slug."),
+    repo: str = typer.Option(
+        ..., "--repo", envvar="DEVEX_REPO_URL", help="Repository URL of the service."
+    ),
+    actor: str = typer.Option(
+        ..., "--actor", envvar="GITHUB_ACTOR", help="Who triggered the event."
+    ),
+    git_sha: str = typer.Option(
+        ..., "--git-sha", envvar="GITHUB_SHA", help="Commit SHA being acted upon."
+    ),
+    collector_url: str | None = typer.Option(
+        None,
+        "--collector-url",
+        envvar="DEVEX_AUDIT_COLLECTOR",
+        help="POST the event here. If omitted, prints JSON to stdout.",
+    ),
+) -> None:
+    """Emit a structured SOC 2 audit event matching AuditEventSchema."""
+    try:
+        event = build_audit_event(
+            work_id=work_id,
+            team=team,
+            repo=repo,
+            action=action,
+            target=target,
+            reason=reason,
+            actor=actor,
+            git_sha=git_sha,
+            framework_version=FRAMEWORK_VERSION,
+        )
+    except ValidationError as exc:
+        err_console.print("[red]error:[/red] invalid audit event payload:")
+        err_console.print(escape(str(exc)))
+        raise typer.Exit(code=1) from exc
+
+    if collector_url:
+        try:
+            emit_audit_to_collector(event, collector_url)
+        except AuditCollectorError as exc:
+            err_console.print(f"[red]error:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(
+            f"[green]OK[/green] Posted audit event ({event.action.value}) → {collector_url}"
+        )
+    else:
+        typer.echo(emit_audit_to_stdout(event))
 
 
 if __name__ == "__main__":

@@ -40,17 +40,32 @@ class TestTemplates:
         assert "team: 'platform'" in profile
         assert "workIdPattern: 'PAY-[0-9]+'" in profile
 
-    def test_pr_wac_composes_all_4_factories(self, ctx: ScaffoldContext) -> None:
+    def test_pr_wac_composes_all_5_factories(self, ctx: ScaffoldContext) -> None:
         files = files_for_profile("python-lambda-api", ctx)
         wac = files["workflows/pr.wac.ts"]
         for factory in (
             "workIdValidationJob",
             "smallTestsJob",
+            "contractValidationJob",
             "cdkSynthJob",
             "doraSummaryJob",
         ):
             assert factory in wac
         assert "needs(" in wac
+
+    def test_profile_omits_tag_severity_by_default(self, ctx: ScaffoldContext) -> None:
+        files = files_for_profile("python-lambda-api", ctx)
+        assert "tagSeverity" not in files["devex.profile.ts"]
+
+    def test_profile_writes_strict_tags_when_requested(self) -> None:
+        ctx = ScaffoldContext(
+            service_name="payments-api",
+            team="platform",
+            repo_url="https://github.com/org/payments-api",
+            strict_tags=True,
+        )
+        files = files_for_profile("python-lambda-api", ctx)
+        assert "tagSeverity: 'error'" in files["devex.profile.ts"]
 
 
 class TestWriteFiles:

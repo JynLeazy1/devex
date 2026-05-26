@@ -20,9 +20,13 @@ class ScaffoldContext:
     aws_region: str = "us-east-1"
     python_runtime: str = "3.12"
     source_path: str = "src/python"
+    strict_tags: bool = False
 
 
 def render_devex_profile_ts(ctx: ScaffoldContext) -> str:
+    tag_severity_line = (
+        "  tagSeverity: 'error',\n" if ctx.strict_tags else ""
+    )
     return f"""\
 import type {{ PythonLambdaProfile }} from '@devex/framework'
 
@@ -43,7 +47,7 @@ export const profile: PythonLambdaProfile = {{
   ],
   openApiPath: null,
   minCoverage: 80,
-}}
+{tag_severity_line}}}
 """
 
 
@@ -53,6 +57,7 @@ import { Workflow } from '@github-actions-workflow-ts/lib'
 
 import {
   cdkSynthJob,
+  contractValidationJob,
   doraSummaryJob,
   smallTestsJob,
   workIdValidationJob,
@@ -62,8 +67,9 @@ import { profile } from '../devex.profile'
 
 const workId = workIdValidationJob(profile)
 const smallTests = smallTestsJob(profile).needs([workId])
-const synth = cdkSynthJob(profile).needs([smallTests])
-const dora = doraSummaryJob(profile).needs([workId, smallTests, synth])
+const contracts = contractValidationJob(profile).needs([workId])
+const synth = cdkSynthJob(profile).needs([smallTests, contracts])
+const dora = doraSummaryJob(profile).needs([workId, smallTests, contracts, synth])
 
 export const prPipeline = new Workflow('pr', {
   name: 'PR Pipeline (Golden Path)',
@@ -71,6 +77,7 @@ export const prPipeline = new Workflow('pr', {
 })
   .addJob(workId)
   .addJob(smallTests)
+  .addJob(contracts)
   .addJob(synth)
   .addJob(dora)
 """

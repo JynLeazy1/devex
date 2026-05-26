@@ -46,10 +46,12 @@ export class PythonLambdaApi extends Construct {
     //    AFTER CDK's built-in Tag-propagation aspects (which are MUTATING,
     //    priority 200). Without this, our aspect races the tag propagation
     //    and reports false negatives on resources whose tags haven't been
-    //    pushed down yet.
-    cdk.Aspects.of(this).add(new GoldenPathTagsAspect(), {
-      priority: cdk.AspectPriority.READONLY,
-    })
+    //    pushed down yet. Severity defaults to 'warning' inside the Aspect
+    //    when `props.tagSeverity` is omitted.
+    cdk.Aspects.of(this).add(
+      new GoldenPathTagsAspect({ severity: props.tagSeverity }),
+      { priority: cdk.AspectPriority.READONLY },
+    )
 
     // 3. Single-table DynamoDB (matches transactionify's pattern).
     this.table = this.createTable(props)

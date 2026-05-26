@@ -49,6 +49,16 @@ function smallTestsJobPython(profile: PythonLambdaProfile): NormalJob {
         with: {
           'python-version': profile.runtime,
           'enable-cache': true,
+          // setup-uv@v4 defaults `cache-dependency-glob` to `**/uv.lock` and
+          // hard-errors when no file matches. Many real consumers don't have
+          // a committed uv.lock yet (e.g., transactionify-style repos still on
+          // requirements.txt). Listing all common Python deps files keeps the
+          // cache key stable AND keeps the action from failing the run.
+          'cache-dependency-glob': [
+            '**/uv.lock',
+            '**/pyproject.toml',
+            '**/requirements.txt',
+          ].join('\n'),
         },
       }),
     )
@@ -65,9 +75,12 @@ function smallTestsJobPython(profile: PythonLambdaProfile): NormalJob {
     )
   }
 
+  // For uv, prefer `uv sync --frozen` (deterministic from uv.lock) but fall
+  // back to `uv pip install -r requirements.txt` when the consumer hasn't
+  // migrated to a lockfile yet. Single `run` keeps the YAML linear-readable.
   const installRun =
     profile.packageManager === 'uv'
-      ? 'uv sync --frozen'
+      ? 'if [ -f uv.lock ]; then uv sync --frozen; else uv pip install -r requirements.txt; fi'
       : 'pip install -r requirements.txt'
 
   job.addStep(
@@ -77,6 +90,15 @@ function smallTestsJobPython(profile: PythonLambdaProfile): NormalJob {
       run: installRun,
     }),
   )
+
+  if (profile.lintCommands.length > 0) {
+    job.addStep(
+      new Step({
+        name: 'Run lint',
+        run: profile.lintCommands.join(' && '),
+      }),
+    )
+  }
 
   job.addStep(
     new Step({
