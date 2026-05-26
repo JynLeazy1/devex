@@ -345,12 +345,12 @@ describe('smallTestsJob (implemented for python)', () => {
       expect(install?.['working-directory']).toBe(pythonProfile.sourcePath)
     })
 
-    it('uv install falls back to `uv pip install --system -r requirements.txt` when uv.lock is absent', () => {
+    it('uv install fallback uses --system --break-system-packages (PEP 668 override for CI)', () => {
       const install = (job.job.steps ?? []).find((s) =>
         s.name?.includes('Install'),
       )
       expect(install?.run).toContain('[ -f uv.lock ]')
-      expect(install?.run).toContain('uv pip install --system -r requirements.txt')
+      expect(install?.run).toContain('uv pip install --system --break-system-packages')
     })
 
     it('uses `pip install -r requirements.txt` when packageManager is pip', () => {
