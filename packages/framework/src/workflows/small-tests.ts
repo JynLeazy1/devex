@@ -103,10 +103,19 @@ function smallTestsJobPython(profile: PythonLambdaProfile): NormalJob {
     )
   }
 
+  // AWS_DEFAULT_REGION is required when any imported module instantiates a
+  // boto3 client at import time (common pattern in Python Lambdas). We prefer
+  // a GitHub Actions repo Variable (`vars.AWS_DEFAULT_REGION`) so consumers
+  // can override per-env without touching the workflow; the fallback is the
+  // profile's `awsRegion` so a freshly-scaffolded repo without the Variable
+  // configured still passes CI.
   job.addStep(
     new Step({
       name: 'Run tests',
-      env: { PYTHONPATH: profile.sourcePath },
+      env: {
+        PYTHONPATH: profile.sourcePath,
+        AWS_DEFAULT_REGION: `\${{ vars.AWS_DEFAULT_REGION || '${profile.awsRegion}' }}`,
+      },
       run: profile.testCommand,
     }),
   )

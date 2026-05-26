@@ -392,6 +392,13 @@ describe('smallTestsJob (implemented for python)', () => {
       expect(tests?.run).toBe(pythonProfile.testCommand)
     })
 
+    it('sets AWS_DEFAULT_REGION env (vars override → profile fallback)', () => {
+      const tests = (job.job.steps ?? []).find((s) => s.name === 'Run tests')
+      const env = tests?.env as Record<string, string> | undefined
+      expect(env?.AWS_DEFAULT_REGION).toContain('vars.AWS_DEFAULT_REGION')
+      expect(env?.AWS_DEFAULT_REGION).toContain(pythonProfile.awsRegion)
+    })
+
     it('runs profile.lintCommands before tests when non-empty', () => {
       const multiLintJob = smallTestsJob({
         ...pythonProfile,
