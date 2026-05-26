@@ -76,14 +76,14 @@ function smallTestsJobPython(profile: PythonLambdaProfile): NormalJob {
   }
 
   // For uv, prefer `uv sync --frozen` (deterministic from uv.lock) but fall
-  // back to `uv pip install --system --break-system-packages -r requirements.txt`
-  // when the consumer hasn't migrated to a lockfile yet. The two flags together
-  // are the canonical CI shortcut: `--system` skips the venv step, and
-  // `--break-system-packages` overrides PEP 668's "externally-managed" guard
-  // (Ubuntu's Python). Both safe in CI because the runner is ephemeral.
+  // back to creating a venv and installing requirements.txt when the consumer
+  // hasn't migrated to a lockfile yet. We can't use --system on stock Ubuntu
+  // runners (PEP 668 marker + read-only /usr/local), so a venv is the only
+  // robust path. Push `.venv/bin` into `$GITHUB_PATH` so the next step
+  // (running `pytest`) picks up the binaries without needing `uv run`.
   const installRun =
     profile.packageManager === 'uv'
-      ? 'if [ -f uv.lock ]; then uv sync --frozen; else uv pip install --system --break-system-packages -r requirements.txt; fi'
+      ? 'if [ -f uv.lock ]; then uv sync --frozen; else uv venv && uv pip install -r requirements.txt; fi && echo "$PWD/.venv/bin" >> "$GITHUB_PATH"'
       : 'pip install -r requirements.txt'
 
   job.addStep(

@@ -345,12 +345,14 @@ describe('smallTestsJob (implemented for python)', () => {
       expect(install?.['working-directory']).toBe(pythonProfile.sourcePath)
     })
 
-    it('uv install fallback uses --system --break-system-packages (PEP 668 override for CI)', () => {
+    it('uv install fallback creates a venv and exports it via $GITHUB_PATH', () => {
       const install = (job.job.steps ?? []).find((s) =>
         s.name?.includes('Install'),
       )
       expect(install?.run).toContain('[ -f uv.lock ]')
-      expect(install?.run).toContain('uv pip install --system --break-system-packages')
+      expect(install?.run).toContain('uv venv')
+      expect(install?.run).toContain('uv pip install -r requirements.txt')
+      expect(install?.run).toContain('$GITHUB_PATH')
     })
 
     it('uses `pip install -r requirements.txt` when packageManager is pip', () => {
