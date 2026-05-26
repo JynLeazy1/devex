@@ -1,0 +1,5 @@
+packages:
+  - 'packages/framework'
+  - 'transactionify-fork'
+onlyBuiltDependencies:
+  - esbuild

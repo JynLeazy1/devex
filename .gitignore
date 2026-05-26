@@ -1,0 +1,48 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / TypeScript ---
+node_modules/
+packages/framework/dist/
+*.tsbuildinfo
+.npm
+.eslintcache
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- CDK (just in case) ---
+cdk.out/
+.cdk.staging/
+
+# --- Local secrets ---
+.env
+.env.local
+*.local
+

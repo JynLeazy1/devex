@@ -1,0 +1,41 @@
+{
+  "name": "@devex/framework",
+  "version": "0.1.0",
+  "description": "DevEx Framework — Type-safe CDK constructs + GitHub Actions workflows for the Golden Path",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "test": "jest",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@github-actions-workflow-ts/lib": "^2.0.0",
+    "aws-cdk-lib": "^2.168.0",
+    "constructs": "^10.3.0"
+  },
+  "devDependencies": {
+    "@github-actions-workflow-ts/lib": "^2.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "aws-cdk-lib": "^2.168.0",
+    "constructs": "^10.3.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "~5.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}
