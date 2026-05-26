@@ -76,11 +76,12 @@ function smallTestsJobPython(profile: PythonLambdaProfile): NormalJob {
   }
 
   // For uv, prefer `uv sync --frozen` (deterministic from uv.lock) but fall
-  // back to `uv pip install -r requirements.txt` when the consumer hasn't
-  // migrated to a lockfile yet. Single `run` keeps the YAML linear-readable.
+  // back to `uv pip install --system -r requirements.txt` when the consumer
+  // hasn't migrated to a lockfile yet. `--system` avoids the venv step in CI;
+  // the GitHub runner's Python is ephemeral so no isolation is needed.
   const installRun =
     profile.packageManager === 'uv'
-      ? 'if [ -f uv.lock ]; then uv sync --frozen; else uv pip install -r requirements.txt; fi'
+      ? 'if [ -f uv.lock ]; then uv sync --frozen; else uv pip install --system -r requirements.txt; fi'
       : 'pip install -r requirements.txt'
 
   job.addStep(
