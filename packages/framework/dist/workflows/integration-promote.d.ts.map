@@ -1,0 +1,1 @@
+{"version":3,"file":"integration-promote.d.ts","sourceRoot":"","sources":["../../src/workflows/integration-promote.ts"],"names":[],"mappings":"AAyBA,OAAO,EAAE,SAAS,EAAE,MAAM,iCAAiC,CAAA;AAE3D,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,aAAa,CAAA;AAE/C,MAAM,MAAM,sBAAsB,GAAG,SAAS,GAAG,SAAS,GAAG,MAAM,CAAA;AAOnE,wBAAgB,qBAAqB,CACnC,QAAQ,EAAE,YAAY,EACtB,GAAG,EAAE,sBAAsB,GAC1B,SAAS,CAEX"}

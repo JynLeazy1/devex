@@ -21,7 +21,11 @@ htmlcov/
 
 # --- Node / TypeScript ---
 node_modules/
-packages/framework/dist/
+# `packages/framework/dist/` IS committed — consumers install via `github:` ref
+# (no npm publish), so the compiled output must be in the repo. The generic
+# `dist/` rule above (a Python convention) otherwise excludes it.
+!packages/framework/dist/
+!packages/framework/dist/**
 *.tsbuildinfo
 .npm
 .eslintcache
