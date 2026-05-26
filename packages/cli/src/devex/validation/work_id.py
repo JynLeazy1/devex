@@ -9,7 +9,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-DEFAULT_WORK_ID_PATTERN = r"[A-Z][A-Z0-9]*-\d+"
+# POSIX ERE-compatible (works in JS RegExp, Python re, AND bash grep -qE).
+# Mirror of `DEFAULT_WORK_ID_PATTERN` in @devex/framework's profiles/_base.ts.
+DEFAULT_WORK_ID_PATTERN = r"[A-Z][A-Z0-9]*-[0-9]+"
 
 
 @dataclass(frozen=True)

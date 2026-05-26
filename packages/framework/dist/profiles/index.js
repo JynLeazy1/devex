@@ -9,7 +9,9 @@
 // Clojure profiles are typed contracts; their workflow factory branches throw
 // `NotImplementedError` at runtime.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assertNever = exports.isClojureProfile = exports.isTypescriptProfile = exports.isGoProfile = exports.isPythonProfile = exports.SUPPORTED_LANGUAGES = void 0;
+exports.assertNever = exports.isClojureProfile = exports.isTypescriptProfile = exports.isGoProfile = exports.isPythonProfile = exports.SUPPORTED_LANGUAGES = exports.DEFAULT_WORK_ID_PATTERN = void 0;
+var _base_1 = require("./_base");
+Object.defineProperty(exports, "DEFAULT_WORK_ID_PATTERN", { enumerable: true, get: function () { return _base_1.DEFAULT_WORK_ID_PATTERN; } });
 /**
  * The set of valid language discriminators. Useful for runtime validation
  * (e.g., when receiving a profile from a config file).

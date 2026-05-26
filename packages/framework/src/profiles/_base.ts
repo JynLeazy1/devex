@@ -44,12 +44,23 @@ export interface BaseProfile {
   readonly repoUrl: string
 
   /**
-   * Regex source string for Work IDs. Validated by `devex validate` and by
-   * the `workIdValidationJob` workflow factory.
+   * Regex source string for Work IDs. Validated by `devex validate` (Python `re`),
+   * by `new RegExp(...)` in workflow generators (JS), AND by `grep -qE` in the
+   * generated bash workflow YAML (POSIX ERE). Must therefore be **POSIX ERE
+   * compatible**.
    *
-   * Examples:
-   *   - 'FIN-\\d+'        (Jira project FIN)
-   *   - '[A-Z]+-\\d+'    (any uppercase prefix + digits — generic default)
+   * **Avoid**: `\d`, `\w`, `\s`, `\b` — only supported in JS/Python regex, treated
+   * as literal characters by POSIX ERE. Real-world consequence: a pattern with
+   * `\d+` matches `FIN-123` in `devex validate` (passes locally) but the CI
+   * `workIdValidationJob` rejects it. We hit this on PR #2 (FIN-124).
+   *
+   * **Use**: POSIX character classes — `[0-9]`, `[A-Za-z0-9]`, `[[:space:]]`.
+   *
+   * See: `DEFAULT_WORK_ID_PATTERN` for the framework-supplied safe default.
+   *
+   * Examples (POSIX-safe):
+   *   - 'FIN-[0-9]+'         (Jira project FIN)
+   *   - '[A-Z][A-Z0-9]*-[0-9]+'  (generic — matches DEFAULT_WORK_ID_PATTERN)
    */
   readonly workIdPattern: string
 
@@ -67,3 +78,21 @@ export interface BaseProfile {
    */
   readonly tagSeverity?: 'warning' | 'error'
 }
+
+/**
+ * Framework-supplied default Work ID regex. **POSIX ERE compatible** — works
+ * in:
+ *   - JavaScript `new RegExp(DEFAULT_WORK_ID_PATTERN)`
+ *   - Python `re.compile(DEFAULT_WORK_ID_PATTERN)`
+ *   - bash `grep -qE "$DEFAULT_WORK_ID_PATTERN"`
+ *
+ * Matches: any uppercase prefix followed by `-` followed by digits.
+ *   - 'FIN-123' ✓
+ *   - 'ABC-9'   ✓
+ *   - 'fin-123' ✗ (lowercase)
+ *   - 'FIN'     ✗ (no dash + digits)
+ *
+ * Consumers can override `profile.workIdPattern` to be project-specific
+ * (e.g., 'FIN-[0-9]+' for a single Jira project) but must stay POSIX-safe.
+ */
+export const DEFAULT_WORK_ID_PATTERN = '[A-Z][A-Z0-9]*-[0-9]+' as const

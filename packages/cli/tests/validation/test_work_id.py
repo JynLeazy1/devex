@@ -154,3 +154,25 @@ class TestRender:
         assert "branch" in rendered
         assert "no-id-here" in rendered
         assert DEFAULT_WORK_ID_PATTERN in rendered
+
+
+class TestDefaultPatternPortability:
+    """Regression for the bug fixed in JynLeazy1/transactionify PR #2: the
+    default pattern MUST be POSIX ERE-compatible because the framework emits
+    it into a bash `grep -qE` call in the generated workflow YAML."""
+
+    def test_does_not_use_perl_extensions(self) -> None:
+        # \d, \w, \s, \b are JS/Python-only. POSIX ERE treats them as literal `d`/etc.
+        assert "\\d" not in DEFAULT_WORK_ID_PATTERN
+        assert "\\w" not in DEFAULT_WORK_ID_PATTERN
+        assert "\\s" not in DEFAULT_WORK_ID_PATTERN
+
+    @pytest.mark.parametrize("work_id", ["FIN-123", "ABC-9", "JIRA-9999", "DATA-1"])
+    def test_matches_canonical_positives(self, work_id: str) -> None:
+        pattern = re.compile(f"^({DEFAULT_WORK_ID_PATTERN})$")
+        assert pattern.match(work_id) is not None
+
+    @pytest.mark.parametrize("bad", ["fin-123", "FIN", "FIN-", "123", "FIN_123", "-9"])
+    def test_rejects_canonical_negatives(self, bad: str) -> None:
+        pattern = re.compile(f"^({DEFAULT_WORK_ID_PATTERN})$")
+        assert pattern.match(bad) is None

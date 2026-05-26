@@ -16,7 +16,11 @@ class ScaffoldContext:
     service_name: str
     team: str
     repo_url: str
-    work_id_pattern: str = r"[A-Z][A-Z0-9]*-\d+"
+    # POSIX ERE-compatible (works in JS RegExp, Python re, AND bash grep -qE).
+    # Mirrors `DEFAULT_WORK_ID_PATTERN` exported from @devex/framework.
+    # DO NOT use `\d`, `\w`, `\s` — JS string literals strip the backslash,
+    # AND POSIX ERE doesn't recognize them. Both layers fail silently.
+    work_id_pattern: str = r"[A-Z][A-Z0-9]*-[0-9]+"
     aws_region: str = "us-east-1"
     python_runtime: str = "3.12"
     source_path: str = "src/python"

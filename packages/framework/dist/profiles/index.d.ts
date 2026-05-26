@@ -3,6 +3,7 @@ import type { GoLambdaProfile } from './go-lambda-api';
 import type { PythonLambdaProfile } from './python-lambda-api';
 import type { TypescriptLambdaProfile } from './typescript-lambda-api';
 export type { BaseProfile } from './_base';
+export { DEFAULT_WORK_ID_PATTERN } from './_base';
 export type { PythonLambdaProfile, PythonRuntime, PythonPackageManager, } from './python-lambda-api';
 export type { GoLambdaProfile, GoRuntime, GoVersion } from './go-lambda-api';
 export type { TypescriptLambdaProfile, NodeRuntime, NodePackageManager, } from './typescript-lambda-api';

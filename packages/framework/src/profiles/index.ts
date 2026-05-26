@@ -14,6 +14,7 @@ import type { PythonLambdaProfile } from './python-lambda-api'
 import type { TypescriptLambdaProfile } from './typescript-lambda-api'
 
 export type { BaseProfile } from './_base'
+export { DEFAULT_WORK_ID_PATTERN } from './_base'
 export type {
   PythonLambdaProfile,
   PythonRuntime,
