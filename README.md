@@ -43,9 +43,11 @@ No multi-env support       →    3 stacks (sandbox/staging/prod) from one file
 ### Install the CLI
 
 ```bash
-uv tool install "git+https://github.com/JynLeazy1/devex#subdirectory=packages/cli"
+uv tool install "git+https://github.com/JynLeazy1/devex@v0.1.0#subdirectory=packages/cli"
 devex --version
 ```
+
+> **Pin explicitly.** The command above pins to `v0.1.0`. Installing from `main` without a tag/SHA produces silent version drift across developers — different adopters can end up scaffolding incompatible `devex.profile.ts` shapes. The Golden Path is reproducible only with explicit refs.
 
 > Prerequisite: `uv` (modern Python package manager from Astral).
 > `curl -LsSf https://astral.sh/uv/install.sh | sh`
@@ -74,13 +76,10 @@ You now have:
 ### Install the framework in your service
 
 ```bash
-pnpm add "github:JynLeazy1/devex#path:/packages/framework"
-```
-
-Pin to a release:
-```bash
 pnpm add "github:JynLeazy1/devex#v0.1.0&path:/packages/framework"
 ```
+
+> **Always pin.** The `#v0.1.0` ref is the recommended form. Omitting it installs `main` and re-installs in 6 months may diverge silently. For bit-identical reproducibility, use the commit SHA in place of the tag (`#<sha>&path:...`) — Git tags are mutable by default, so a strict-compliance consumer should pin to the SHA and let tooling resolve the tag-to-SHA mapping once.
 
 ### Generate the pipeline YAML
 
@@ -211,14 +210,14 @@ This is a **Proof of Concept**. Some pieces are deliberately deferred — see [A
 | Capability | Status | Notes |
 |---|---|---|
 | `PythonLambdaApi` + `PythonLambdaRoute` Constructs | ✅ Real | CDK assertions tests |
-| `GoldenPathTagsAspect` | ✅ Real | Configurable severity (`warning` / `error`) |
+| `GoldenPathTagsAspect` | 🟡 Real, with documented latencies | Configurable severity (`warning` / `error`). Implementation reads `renderTags()` mid-aspect-pass and walks the parent chain — depends on no third-party MUTATING aspect altering tag state at priority 200-999. Regression test captures false-positives with N≥3 routes (latent if any consumer sets `tagSeverity: 'error'`). Migration target: `Validations.of().addValidation()` at end-of-synth eliminates ordering dependency. |
 | `workIdValidationJob` workflow factory | ✅ Real | Pure bash; mirrors `devex validate` |
 | `smallTestsJob` (Python) | ✅ Real | Go/TS/Clojure branches throw `out of PoC scope` |
 | `contractValidationJob` | ✅ Real | `openapi-spec-validator` for static spec validation |
 | `cdkSynthJob` | ✅ Real | Triggers `GoldenPathTagsAspect` enforcement |
-| `doraSummaryJob` | ✅ Real | Emits `DoraEvent` JSON matching the shared schema |
+| `doraSummaryJob` (current scope) | 🟡 Partial | Emits a per-PR summary event matching the shared schema. Supports PR-pipeline metrics (failure rate, cycle time, flakiness) Python⇄Go comparable. Canonical DORA metrics (Deployment Frequency, Lead Time, MTTR, Change Failure Rate) require `integration-deploy-prod` events — gated on Integration Pipeline (deferred). Planned rename: `pipelineSummaryJob` for current scope, `doraSummaryJob` reserved for the deploy emitter. |
 | `devex validate` (Work ID enforcement) | ✅ Real | Branch / commits / PR title checks |
-| `devex check` (lint + test from profile) | ✅ Real | Regex-parses `devex.profile.ts`; fail-fast |
+| `devex check` (lint + test from profile) | 🟡 Real for `devex init` output | Regex parser handles the profile shape `devex init` produces and falls back loudly on imports for field values. Hand-edited profiles with template-string interpolation, block comments inside string literals, or multiple exports currently pass silently — documented debt; migration target is `npx @devex/framework resolve-profile` (full TS semantics, no regex). |
 | `devex init` (scaffolding) | ✅ Real | Auto-detects service-name + repo URL from git |
 | `devex hooks install [--auto-inject\|--with-checks]` | ✅ Real | pre-push + prepare-commit-msg with absolute path |
 | `devex dora emit` (JSON or POST to collector) | ✅ Real | Pydantic validation, stdout or HTTP transport |
@@ -278,7 +277,7 @@ Four properties drive every decision in the framework. See [ADR-001](./adr/ADR-0
 
 ### 1. Homologation (10+ teams adopt without coordination)
 - `devex init --team X` produces a working Golden Path in seconds
-- Three self-enforcing checkpoints: pre-push hook → PR pipeline → branch protection
+- Three self-enforcing checkpoints: pre-push hook → PR pipeline → branch protection (the last requires a one-time org-level Ruleset setup — `devex init` opts the repo in via a custom property, no admin token in developer hands; see ADR §2)
 - Migration mode (planned) is opt-in incremental for existing repos
 
 ### 2. Scalability (platform team scales sub-linearly with team count)
@@ -293,8 +292,9 @@ Four properties drive every decision in the framework. See [ADR-001](./adr/ADR-0
 - **L4**: Integration Pipeline (deferred) handles sandbox → staging → prod promotion
 
 ### 4. Auditability as a dividend
-- A single `DoraEvent` schema feeds both DORA dashboards and SOC 2 audit logs
+- A single event shape feeds both observability dashboards and SOC 2 audit logs
 - TS framework and Python CLI emit/validate the same schema — drift between them is a compile error
+- Today the emission set covers PR-pipeline stages; canonical DORA metrics (Deployment Frequency, Lead Time, MTTR, Change Failure Rate) require Integration Pipeline activation (deferred) — see ADR §4 for the scope split
 
 ---
 
