@@ -15,23 +15,25 @@
 
 The reference project [`transactionify`](https://github.com/rrgarciach/transactionify) is a real Python Lambda + API Gateway + DynamoDB service. Its `lib/transactionify-stack.ts` is **187 lines** of repeated CDK boilerplate: 5 Lambdas × (function + grant + integration + route) plus tags hardcoded inline.
 
-A consumer fork demonstrating the refactor lives at [`JynLeazy1/transactionify`](https://github.com/JynLeazy1/transactionify). After adopting `@devex/framework`, the same Stack drops to **73 lines** — a **60% reduction** — and gains:
+A consumer fork demonstrating the refactor lives at [`JynLeazy1/transactionify`](https://github.com/JynLeazy1/transactionify). After adopting `@devex/framework`, the same Stack reaches **67 lines** in pure refactor (-64%); the production state with the `extraGrants` prop restoring the upstream `provisioningLambda` pattern is **84 lines** (-55%), gaining:
 
 - **Multi-environment support** (sandbox / staging / prod, each a separate Stack)
 - **FinOps tag enforcement** via CDK Aspect (missing tag → `cdk synth` warning or error)
 - **A full 5-stage PR pipeline** (~240 lines of YAML) auto-generated from a 23-line `.wac.ts` file
 - **Python 3.12 by default** (the original was stuck on 3.9, EOL October 2025)
-- **DORA & audit events** matching a shared schema (TS ⇄ Python lockstep)
+- **`extraGrants` side-car Lambdas** matching upstream parity (`provisioningLambda` restored via PR PROV-127)
+- **DORA-shaped event emission** at every PR-pipeline stage (TS ⇄ Python lockstep schema; canonical DORA metrics gated on Integration Pipeline)
 
 ```
 Before                                After
 ──────                                ─────
-187 lines of inline CDK    →    73 lines using PythonLambdaApi
+187 lines of inline CDK    →    67 (pure refactor) / 84 (with extraGrants)
 Tags repeated 6× inline    →    1 typed `tags: GoldenPathTags` prop
 Python 3.9 (deprecated)    →    Python 3.12 enforced
 No CI/CD workflows         →    5-job PR pipeline from a .wac.ts file
-No DORA emission           →    Cross-language DoraEvent at every stage
+No structured events       →    PR-pipeline events at every stage (DORA shape)
 No multi-env support       →    3 stacks (sandbox/staging/prod) from one file
+provisioningLambda dropped →    Restored via `extraGrants` (PROV-127, inner-source)
 ```
 
 > See [`JynLeazy1/transactionify`](https://github.com/JynLeazy1/transactionify) for the full refactored consumer (multi-env stack, `.wac.ts` workflows, generated YAML).
@@ -222,7 +224,7 @@ This is a **Proof of Concept**. Some pieces are deliberately deferred — see [A
 | `devex hooks install [--auto-inject\|--with-checks]` | ✅ Real | pre-push + prepare-commit-msg with absolute path |
 | `devex dora emit` (JSON or POST to collector) | ✅ Real | Pydantic validation, stdout or HTTP transport |
 | `devex audit emit` (SOC 2 audit events) | ✅ Real | Same shape as `dora emit`; AuditAction enum (8 values) |
-| Reference consumer (multi-env stack) | ✅ Real | Refactored 187→73 lines · sandbox/staging/prod · lives at [JynLeazy1/transactionify](https://github.com/JynLeazy1/transactionify) |
+| Reference consumer (multi-env stack) | ✅ Real | Refactored 187→67 lines (pure) / 84 lines (with `extraGrants`) · sandbox/staging/prod · lives at [JynLeazy1/transactionify](https://github.com/JynLeazy1/transactionify) · 5 PRs merged + PROV-127 open with 5/5 green CI |
 | **Plus** — Kiro steering files | ✅ Real | `.kiro/steering/*.md` for AI-assisted development |
 | **Plus** — Pre-Push Validation | ✅ Real | `devex check` integrated into pre-push (`--with-checks`) |
 | `integrationPromoteJob` (Sandbox → Staging → Prod) | 🟡 Skeleton | Typed factory exists for `integration.wac.ts`; body throws `out of PoC scope` |
@@ -243,14 +245,14 @@ cd devex
 # Install everything (workspace-linked)
 pnpm install
 
-# Run all framework tests (95 tests)
+# Run all framework tests (112 tests)
 cd packages/framework && pnpm test
 
-# Run all CLI tests (131 tests)
+# Run all CLI tests (142 tests)
 cd ../cli && uv pip install -e ".[dev]" && pytest
 ```
 
-**226 tests** across both packages pass on a clean clone (131 Python + 95 TypeScript).
+**254 tests** across both packages pass on a clean clone (142 Python + 112 TypeScript).
 
 ---
 
